@@ -1,4 +1,4 @@
-# SIDEBAND v0.4.1 Security and Privacy
+# SIDEBAND v0.4.2 Security and Privacy
 
 ## Embeddable listener boundary
 

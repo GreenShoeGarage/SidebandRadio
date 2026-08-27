@@ -1,4 +1,4 @@
-# SIDEBAND v0.4.1 Deployment and Operations
+# SIDEBAND v0.4.2 Deployment and Operations
 
 ## Production topology
 
@@ -14,6 +14,8 @@ One Cloudflare Worker route owns `greenshoegarage.com/radio*`. Requests beneath 
 | `/radio/media/*` | `/media/*` |
 
 The Green Shoe Garage origin continues handling every address outside `/radio*`.
+
+Static-asset HTML canonicalization is disabled. The Worker explicitly maps `/radio/` to `index.html` and both Studio URL forms to `studio.html`, preventing Cloudflare Static Assets from redirecting an internally normalized path outside `/radio`.
 
 ## One-time deployment
 

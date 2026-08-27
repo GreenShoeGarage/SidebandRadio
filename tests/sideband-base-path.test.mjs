@@ -22,6 +22,15 @@ test("prefixed static requests are stripped before asset lookup", async () => {
   assert.equal(await response.text(), "/index.html");
 });
 
+test("prefixed listener root explicitly serves index without an asset redirect", async () => {
+  const response = await handleRequest(
+    new Request("https://greenshoegarage.com/radio/"),
+    assetsEnvironment(),
+  );
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "/index.html");
+});
+
 test("prefixed Studio route still requires operator authentication", async () => {
   const response = await handleRequest(
     new Request("https://greenshoegarage.com/radio/studio.html"),
@@ -71,6 +80,7 @@ test("explicit non-production preview identity remains available", async () => {
     { ...assetsEnvironment(), ENVIRONMENT: "development", ALLOW_WORKSPACE_AUTH: "true" },
   );
   assert.equal(response.status, 200);
+  assert.equal(await response.text(), "/studio.html");
 });
 
 test("local root development remains available", async () => {

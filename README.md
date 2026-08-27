@@ -1,6 +1,6 @@
 # SIDEBAND — Audio Broadcast Workbench
 
-**Version:** 0.4.1  
+**Version:** 0.4.2  
 **Production address:** `https://greenshoegarage.com/radio/`  
 **Deployment model:** one Cloudflare Worker, one command after setup
 
@@ -209,6 +209,7 @@ Detailed references are available in `docs/DEPLOYMENT.md`, `docs/SECURITY.md`, `
 
 ## Release history
 
+- **0.4.2 — 2026-08-27:** disabled automatic static-asset HTML redirects and explicitly mapped the listener root and Studio asset so internal `/radio` normalization cannot generate a root-level `/studio` redirect.
 - **0.4.1 — 2026-08-27:** made `/radio/studio` the canonical Studio address, mapped it explicitly to the Studio asset, and consolidated both Studio URL forms under one Access wildcard.
 - **0.4.0 — 2026-08-27:** consolidated the frontend and backend beneath `greenshoegarage.com/radio/*`, added guided infrastructure setup, one-command updates, same-origin media resolution, production path tests, and unified Access protection.
 - **0.3.0 — 2026-08-26:** made the public package subdirectory-safe for Apache deployment.

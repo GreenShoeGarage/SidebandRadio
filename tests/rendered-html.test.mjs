@@ -13,18 +13,23 @@ test("health endpoint reports the exact application version", async () => {
   const response = await handleRequest(new Request("http://localhost/api/health/public"), {});
   assert.equal(response.status, 200);
   const body = await response.json();
-  assert.equal(body.version, "0.4.1");
+  assert.equal(body.version, "0.4.2");
   assert.equal(body.status, "available");
 });
 
 test("production health endpoint works beneath the radio base path", async () => {
   const response = await handleRequest(new Request("https://greenshoegarage.com/radio/api/health/public"), {});
   assert.equal(response.status, 200);
-  assert.equal((await response.json()).version, "0.4.1");
+  assert.equal((await response.json()).version, "0.4.2");
 });
 
 test("bare radio path redirects to its trailing-slash form", async () => {
   const response = await handleRequest(new Request("https://greenshoegarage.com/radio"), {});
   assert.equal(response.status, 308);
   assert.equal(response.headers.get("location"), "https://greenshoegarage.com/radio/");
+});
+
+test("Cloudflare asset HTML redirects are disabled for mounted paths", async () => {
+  const config = JSON.parse(await readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8"));
+  assert.equal(config.assets.html_handling, "none");
 });
