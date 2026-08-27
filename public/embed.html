@@ -8,6 +8,7 @@
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./styles/shared.css">
   <link rel="stylesheet" href="./styles/listener.css">
+  <link rel="stylesheet" href="./styles/live-state.css">
 </head>
 <body class="embed-body widget-theme-dark">
   <main id="embedPlayer" class="embed-player" data-layout="standard">
@@ -15,8 +16,14 @@
       <div id="stationArt" class="embed-artwork" aria-hidden="true">SB</div>
       <div class="brand">
         <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
-        <span><strong id="stationName">SIDEBAND</strong><small>AUDIO ONLY · v0.4.2</small></span>
+        <span><strong id="stationName">SIDEBAND</strong><small>AUDIO ONLY · v0.5.3</small></span>
       </div>
+    </div>
+
+    <div id="liveSignalBanner" class="embed-live-banner" role="status" aria-live="polite" hidden>
+      <span><span class="lamp lamp-red"></span>LIVE NOW</span>
+      <strong id="liveSignalTitle">MICROPHONE BROADCAST</strong>
+      <time id="liveElapsed">00:00:00</time>
     </div>
 
     <div class="embed-program">

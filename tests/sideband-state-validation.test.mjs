@@ -14,6 +14,9 @@ test("station transitions are monotonic and preserve held playhead", () => {
 
 test("fallback transition ends live mode", () => {
   const live = applyTransition(initialState(), "live", { liveSessionId: "live_1" }, "2026-08-26T12:00:00Z");
+  assert.equal(live.mode, "LIVE");
+  assert.equal(live.source, "REALTIME");
+  assert.equal(live.stationStartedAtUtc, "2026-08-26T12:00:00Z");
   const fallback = applyTransition(live, "fallback", { item: { id: "fallback" } }, "2026-08-26T12:01:00Z");
   assert.equal(fallback.mode, "FALLBACK");
   assert.equal(fallback.liveSessionId, null);

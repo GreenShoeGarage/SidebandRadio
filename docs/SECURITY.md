@@ -1,4 +1,4 @@
-# SIDEBAND v0.4.2 Security and Privacy
+# SIDEBAND v0.5.3 Security and Privacy
 
 ## Embeddable listener boundary
 
@@ -6,12 +6,15 @@ Only `/radio/embed.html` may be framed by third-party sites. Other pages retain 
 
 The embedded player receives the same public-safe station identity and on-air state as the full listener. It never receives access tokens, private notes, multipart upload identifiers, Cloudflare R2 object keys, or protected Station Studio data. Audio still requires a visitor gesture and is served through the public media projection rather than exposing the private bucket.
 
+Easy Broadcast uses the same authenticated, operator-bound multipart upload controls as Advanced mode. Its full temporary queue stays in the station Durable Object. Public clients receive only the current item, next item, queue position, queue length, and opaque broadcast identifier needed to describe synchronized playback.
+
 ## Trust boundaries
 
 - Public listener routes are anonymous and return public-safe metadata only.
 - `/radio/studio*` and every `/radio/api/admin/*` route require an authenticated operator in production.
 - R2 is private; media leaves only through `/radio/media/:assetId`.
 - Cloudflare Realtime credentials remain in Worker secrets.
+- Realtime failure diagnostics contain only provider stage/status/error metadata and structural SDP checks; raw SDP, microphone content, application identifiers, and secrets are excluded.
 - D1 internal notes, object keys, upload identifiers, and audit details are never included in public route projections.
 
 ## Cloudflare Access validation

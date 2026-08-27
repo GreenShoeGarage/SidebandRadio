@@ -9,6 +9,7 @@
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./styles/shared.css">
   <link rel="stylesheet" href="./styles/listener.css">
+  <link rel="stylesheet" href="./styles/live-state.css">
   <link rel="stylesheet" href="./styles/widget.css">
   <link rel="manifest" href="./manifest.webmanifest">
 </head>
@@ -16,7 +17,7 @@
   <header class="listener-header">
     <a class="brand" href="./index.html" aria-label="SIDEBAND home">
       <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
-      <span><strong>SIDEBAND</strong><small>AUDIO BROADCAST WORKBENCH · v0.4.2</small></span>
+      <span><strong>SIDEBAND</strong><small>AUDIO BROADCAST WORKBENCH · v0.5.3</small></span>
     </a>
     <div class="status-cluster">
       <span class="pill"><span class="lamp lamp-green"></span>AUDIO ONLY</span>
@@ -34,6 +35,12 @@
         <p id="stationDescription">A synchronized audio-only station assembled on an engineer’s workbench.</p>
       </div>
       <a class="text-link studio-link" href="./studio">STATION STUDIO <span aria-hidden="true">↗</span></a>
+    </section>
+
+    <section id="liveSignalBanner" class="live-signal-banner" role="status" aria-live="polite" hidden>
+      <span class="live-signal-kicker"><span class="lamp lamp-red"></span>LIVE NOW</span>
+      <strong id="liveSignalTitle">MICROPHONE BROADCAST</strong>
+      <span class="live-signal-time">ON AIR <time id="liveElapsed">00:00:00</time></span>
     </section>
 
     <section class="console" aria-labelledby="nowHeading">
@@ -167,7 +174,7 @@
     </section>
   </main>
 
-  <footer><span>SIDEBAND v0.4.2</span><span>No telemetry · No advertising · Audio only</span><span id="footerState">Not connected</span></footer>
+  <footer><span>SIDEBAND v0.5.3</span><span>No telemetry · No advertising · Audio only</span><span id="footerState">Not connected</span></footer>
   <audio id="stationAudio" preload="metadata" crossorigin="anonymous"></audio>
   <script src="./config.js"></script>
   <script type="module" src="./scripts/listener.js"></script>

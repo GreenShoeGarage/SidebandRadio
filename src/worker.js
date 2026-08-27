@@ -3,22 +3,32 @@ import { requireOperator, enforceOrigin } from "./auth.js";
 import { correlationId, errorResponse, HttpError, json } from "./errors.js";
 import { readState, transition } from "./station-state.js";
 import { PUBLIC_BASE_PATH, STATION_ID, cleanText, opaque, readJson } from "./validation.js";
+import { publisherTracksRequest, sessionDescription, subscriberTracksRequest } from "./realtime-payload.js";
+import { describeSessionDescription, safeRealtimeProviderError } from "./realtime-diagnostics.js";
 
 export { StationStateDurableObject } from "./station-durable-object.js";
 
-async function realtimeRequest(env, path, { method = "POST", body } = {}) {
+async function realtimeRequest(env, path, { method = "POST", body, stage = "realtime.request", correlation = "" } = {}) {
   if (!env.REALTIME_APP_ID || !env.REALTIME_API_TOKEN) {
     throw new HttpError(503, "REALTIME_NOT_CONFIGURED", "Cloudflare Realtime is not configured. Scheduled broadcasting remains available.", "Set REALTIME_APP_ID and REALTIME_API_TOKEN as Worker secrets.");
   }
-  const response = await fetch(`https://rtc.live.cloudflare.com/v1/apps/${encodeURIComponent(env.REALTIME_APP_ID)}${path}`, {
+  const providerUrl = new URL(`https://rtc.live.cloudflare.com/v1/apps/${encodeURIComponent(env.REALTIME_APP_ID)}${path}`);
+  if (correlation) providerUrl.searchParams.set("correlationId", correlation);
+  const providerFetch = env.REALTIME_FETCH || fetch;
+  const response = await providerFetch(providerUrl, {
     method,
     headers: { authorization: `Bearer ${env.REALTIME_API_TOKEN}`, "content-type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   let payload = {};
   try { payload = await response.json(); } catch {}
-  if (!response.ok) {
-    throw new HttpError(502, "REALTIME_REQUEST_FAILED", payload.errorDescription || payload.message || "Cloudflare Realtime rejected the session request.", "Check the Realtime application identifier, secret, and current Connection API requirements.");
+  if (!response.ok || payload.errorCode) {
+    const provider = safeRealtimeProviderError(response, payload, stage, body);
+    const message = provider.errorDescription || "Cloudflare Realtime rejected the session request.";
+    const recovery = stage === "session.create"
+      ? "Verify that REALTIME_APP_ID and REALTIME_API_TOKEN belong to the same Realtime SFU application."
+      : "Export Studio diagnostics; the report now includes the rejected operation and a privacy-safe offer summary.";
+    throw new HttpError(502, "REALTIME_REQUEST_FAILED", message, recovery, null, { provider });
   }
   return payload;
 }
@@ -29,24 +39,135 @@ async function stationLog(env, type, message, operatorId, metadata, requestId) {
     .bind(opaque("log"), STATION_ID, type, message, operatorId, requestId, JSON.stringify(metadata), new Date().toISOString()).run();
 }
 
+function quickAsset(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    artist: row.artist,
+    creator: row.artist,
+    durationSeconds: Number(row.duration_seconds || 0),
+    mimeType: row.mime_type,
+    mediaUrl: `/media/${encodeURIComponent(row.id)}`,
+  };
+}
+
+async function startEasyBroadcast(request, env, operator, requestId) {
+  if (!env.DB) throw new HttpError(503, "D1_UNAVAILABLE", "Easy Broadcast requires station metadata storage.");
+  const current = await readState(env);
+  if (current.mode === "LIVE") throw new HttpError(409, "LIVE_BROADCAST_ACTIVE", "End the live microphone before starting prerecorded Easy Broadcast audio.");
+  if (current.source === "QUICK_BROADCAST") throw new HttpError(409, "EASY_BROADCAST_ACTIVE", "End the current Easy Broadcast before starting another file queue.");
+  const body = await readJson(request, 262144);
+  if (!Array.isArray(body.assetIds) || body.assetIds.length < 1 || body.assetIds.length > 100) {
+    throw new HttpError(400, "EASY_BROADCAST_QUEUE_INVALID", "Choose between 1 and 100 audio files for Easy Broadcast.");
+  }
+  const items = [];
+  for (const value of body.assetIds) {
+    const assetId = cleanText(value, { name: "assetId", required: true, max: 100 });
+    const row = await env.DB.prepare("SELECT * FROM audio_assets WHERE id=? AND station_id=? AND archived_at_utc IS NULL").bind(assetId, STATION_ID).first();
+    if (!row || row.availability !== "AVAILABLE") throw new HttpError(404, "AUDIO_ASSET_UNAVAILABLE", "One of the selected Easy Broadcast files is unavailable.");
+    if (!(Number(row.duration_seconds) > 0)) throw new HttpError(409, "AUDIO_DURATION_REQUIRED", `${row.title || "A selected file"} has no readable duration.`, "Choose a browser-decodable MPEG-1 Audio Layer III (MP3), Advanced Audio Coding (AAC), Ogg, or WebM audio file.");
+    items.push(quickAsset(row));
+  }
+  const quickBroadcastId = opaque("quick");
+  const state = await transition(env, "quick-broadcast", { items, quickBroadcastId, programName: cleanText(body.programName || "Easy Broadcast", { max: 100 }) });
+  await stationLog(env, "EASY_BROADCAST_START", `Easy Broadcast started with ${items.length} selected file${items.length === 1 ? "" : "s"}.`, operator.id, { quickBroadcastId, assetIds: items.map(item => item.id), itemCount: items.length }, requestId);
+  return json({ state, quickBroadcastId, queueLength: items.length }, 201);
+}
+
+async function advanceEasyBroadcast(env, operatorId, requestId) {
+  const current = await readState(env);
+  if (current.source !== "QUICK_BROADCAST") throw new HttpError(409, "EASY_BROADCAST_NOT_ACTIVE", "Easy Broadcast is not currently on air.");
+  const queue = Array.isArray(current.quickQueue) ? current.quickQueue : [];
+  const index = Number(current.quickQueueIndex || 0) + 1;
+  const state = index < queue.length
+    ? await transition(env, "quick-next", { index, item: queue[index] })
+    : await transition(env, "quick-complete", {});
+  await stationLog(env, index < queue.length ? "EASY_BROADCAST_TRACK" : "EASY_BROADCAST_COMPLETE", index < queue.length ? `Easy Broadcast skipped to ${queue[index].title}.` : "Easy Broadcast finished its selected file queue.", operatorId, { quickBroadcastId: current.quickBroadcastId, queueIndex: index, itemCount: queue.length }, requestId);
+  return state;
+}
+
+async function endEasyBroadcast(env, operator, requestId) {
+  const current = await readState(env);
+  if (current.source !== "QUICK_BROADCAST") throw new HttpError(409, "EASY_BROADCAST_NOT_ACTIVE", "Easy Broadcast is not currently on air.");
+  const state = await transition(env, "quick-complete", {});
+  await stationLog(env, "EASY_BROADCAST_END", "Easy Broadcast was ended by the operator.", operator.id, { quickBroadcastId: current.quickBroadcastId }, requestId);
+  return json({ state });
+}
+
+async function recentRealtimeFailure(env) {
+  if (!env.DB) return null;
+  try {
+    const result = await env.DB.prepare("SELECT event_type,metadata_json,correlation_id,created_at_utc FROM station_logs WHERE station_id=? AND event_type IN ('LIVE_SESSION','LIVE_FAILURE') ORDER BY created_at_utc DESC LIMIT 20").bind(STATION_ID).all();
+    for (const row of result.results || []) {
+      if (row.event_type === "LIVE_SESSION") return null;
+      let metadata = {};
+      try { metadata = JSON.parse(row.metadata_json || "{}"); } catch {}
+      if (metadata.realtimeProvider) return {
+        occurredAtUtc: row.created_at_utc,
+        correlationId: row.correlation_id,
+        provider: metadata.realtimeProvider,
+        offer: metadata.offer,
+        clientTrackMode: metadata.clientTrackMode,
+      };
+    }
+  } catch {}
+  return null;
+}
+
+async function diagnosticsWithRealtime(request, env, ctx, requestId) {
+  const response = await handleCore(request, env, ctx);
+  if (!response.ok) return withSecurity(response, requestId);
+  const data = await response.json();
+  const failure = await recentRealtimeFailure(env);
+  if (failure) {
+    data.lastRealtimeFailure = failure;
+    data.errorCategories = [...new Set([...(data.errorCategories || []), failure.provider?.errorCode || "REALTIME_REQUEST_FAILED"])];
+    data.bindings.realtime = { status: "degraded", message: `Last live attempt failed at ${failure.provider?.stage || "provider request"}` };
+    data.overall = "degraded";
+  }
+  return withSecurity(json(data), requestId);
+}
+
 async function publishLive(request, env, operator, requestId) {
   const body = await readJson(request, 524288);
-  const description = body.sessionDescription;
+  const description = sessionDescription(body.sessionDescription);
   if (!description?.sdp || description.type !== "offer") throw new HttpError(400, "WEBRTC_OFFER_REQUIRED", "A valid Web Real-Time Communication (WebRTC) offer is required.");
-  const created = await realtimeRequest(env, "/sessions/new", { body: {} });
-  if (!created.sessionId) throw new HttpError(502, "REALTIME_SESSION_INVALID", "Cloudflare Realtime did not return a session identifier.");
-  const trackName = `sideband-live-${crypto.randomUUID()}`;
-  const result = await realtimeRequest(env, `/sessions/${encodeURIComponent(created.sessionId)}/tracks/new`, { body: {
-    sessionDescription: description,
-    tracks: [{ location: "local", trackName, kind: "audio" }],
-  } });
+  let created, result, publishedTrack;
+  try {
+    created = await realtimeRequest(env, "/sessions/new", { stage: "session.create", correlation: requestId });
+    if (!created.sessionId) throw new HttpError(502, "REALTIME_SESSION_INVALID", "Cloudflare Realtime did not return a session identifier.", "Export Studio diagnostics and verify the Realtime SFU application.", null, { provider: { stage: "session.create", endpoint: "/sessions/new", httpStatus: 201 } });
+    result = await realtimeRequest(env, `/sessions/${encodeURIComponent(created.sessionId)}/tracks/new`, {
+      body: publisherTracksRequest(description), stage: "track.publish", correlation: requestId,
+    });
+    publishedTrack = result.tracks?.find(track => typeof track?.trackName === "string" && track.trackName && !track.errorCode);
+    if (!result.sessionDescription?.sdp || !publishedTrack) {
+      const rejectedTrack = result.tracks?.find(track => track?.errorCode);
+      const provider = {
+        stage: "track.publish",
+        endpoint: "/sessions/{sessionId}/tracks/new",
+        httpStatus: 200,
+        errorCode: rejectedTrack?.errorCode,
+        errorDescription: rejectedTrack?.errorDescription,
+        request: { sessionDescription: describeSessionDescription(description), autoDiscover: true, trackCount: 0 },
+      };
+      throw new HttpError(502, "REALTIME_PUBLISH_INVALID", rejectedTrack?.errorDescription || "Cloudflare Realtime did not return a complete microphone publication.", "Export Studio diagnostics; the report includes the failed provider stage and offer summary.", null, { provider });
+    }
+  } catch (error) {
+    const provider = error?.details?.provider || { stage: "publisher.validation", errorDescription: error?.message };
+    await stationLog(env, "LIVE_FAILURE", `Live microphone failed at ${provider.stage || "unknown"}.`, operator.id, {
+      realtimeProvider: provider,
+      offer: describeSessionDescription(description),
+      clientTrackMode: cleanText(body.clientTrackMode || "unknown", { max: 40 }),
+    }, requestId).catch(() => {});
+    throw error;
+  }
   const liveSessionId = opaque("live");
   const stamp = new Date().toISOString();
   if (env.DB) {
     await env.DB.prepare("INSERT INTO live_sessions (id,station_id,operator_id,status,provider_session_id,started_at_utc,resume_rule,created_at_utc,updated_at_utc) VALUES (?,?,?,?,?,?,?,?,?)")
       .bind(liveSessionId, STATION_ID, operator.id, "LIVE", created.sessionId, stamp, cleanText(body.resumeRule || "schedule", { max: 30 }), stamp, stamp).run();
   }
-  const liveSource = { providerSessionId: created.sessionId, trackName: result.tracks?.[0]?.trackName || trackName };
+  const liveSource = { providerSessionId: created.sessionId, trackName: publishedTrack.trackName };
   const state = await transition(env, "live", { liveSessionId, liveSource, nextTransitionAtUtc: new Date(Date.now() + 20000).toISOString() });
   await stationLog(env, "LIVE_SESSION", "Live microphone placed on air.", operator.id, { liveSessionId }, requestId);
   return json({ liveSessionId, sessionDescription: result.sessionDescription, trackName: liveSource.trackName, state }, 201);
@@ -56,12 +177,14 @@ async function subscribeLive(request, env) {
   const current = await readState(env);
   if (current.mode !== "LIVE" || !current.liveSource) throw new HttpError(409, "LIVE_SOURCE_UNAVAILABLE", "The station is not carrying a live microphone source.");
   const body = await readJson(request, 524288);
-  if (!body.sessionDescription?.sdp) throw new HttpError(400, "WEBRTC_OFFER_REQUIRED", "A listener WebRTC offer is required.");
-  const created = await realtimeRequest(env, "/sessions/new", { body: {} });
-  const result = await realtimeRequest(env, `/sessions/${encodeURIComponent(created.sessionId)}/tracks/new`, { body: {
-    sessionDescription: body.sessionDescription,
-    tracks: [{ location: "remote", sessionId: current.liveSource.providerSessionId, trackName: current.liveSource.trackName }],
-  } });
+  const description = sessionDescription(body.sessionDescription);
+  if (!description.sdp || description.type !== "offer") throw new HttpError(400, "WEBRTC_OFFER_REQUIRED", "A listener WebRTC offer is required.");
+  const created = await realtimeRequest(env, "/sessions/new", { stage: "listener.session.create" });
+  if (!created.sessionId) throw new HttpError(502, "REALTIME_SESSION_INVALID", "Cloudflare Realtime did not return a listener session identifier.");
+  const result = await realtimeRequest(env, `/sessions/${encodeURIComponent(created.sessionId)}/tracks/new`, {
+    body: subscriberTracksRequest(description, current.liveSource), stage: "listener.track.subscribe",
+  });
+  if (!result.sessionDescription?.sdp) throw new HttpError(502, "REALTIME_SUBSCRIBE_INVALID", "Cloudflare Realtime did not return a complete listener connection.");
   return json({ sessionId: created.sessionId, sessionDescription: result.sessionDescription, tracks: result.tracks || [], serverNowUtc: new Date().toISOString() }, 201);
 }
 
@@ -225,6 +348,18 @@ export async function handleRequest(incomingRequest, env = {}, ctx = { waitUntil
   const request = routed.request;
   const url = new URL(request.url);
   const requestId = correlationId(request);
+  if (url.pathname === "/api/admin/easy-broadcast/start" && request.method === "POST") {
+    try { const operator = await requireOperator(request, env); enforceOrigin(request, env); return withSecurity(await startEasyBroadcast(request, env, operator, requestId), requestId); }
+    catch (error) { return withSecurity(errorResponse(error, requestId), requestId); }
+  }
+  if (url.pathname === "/api/admin/easy-broadcast/end" && request.method === "POST") {
+    try { const operator = await requireOperator(request, env); enforceOrigin(request, env); return withSecurity(await endEasyBroadcast(env, operator, requestId), requestId); }
+    catch (error) { return withSecurity(errorResponse(error, requestId), requestId); }
+  }
+  if (url.pathname === "/api/admin/on-air/skip" && request.method === "POST" && (await readState(env)).source === "QUICK_BROADCAST") {
+    try { const operator = await requireOperator(request, env); enforceOrigin(request, env); return withSecurity(json({ state: await advanceEasyBroadcast(env, operator.id, requestId) }), requestId); }
+    catch (error) { return withSecurity(errorResponse(error, requestId), requestId); }
+  }
   if (url.pathname.endsWith("/publish") && url.pathname.startsWith("/api/admin/schedules/") && request.method === "POST") return handleCore(await normalizeSchedulePublish(request, env), env, ctx);
   const itemMatch = url.pathname.match(/^\/api\/admin\/playlists\/([^/]+)\/items(?:\/([^/]+))?$/);
   if (itemMatch) {
@@ -245,6 +380,7 @@ export async function handleRequest(incomingRequest, env = {}, ctx = { waitUntil
     try { const operator = await requireOperator(request, env); enforceOrigin(request, env); return withSecurity(await importCommit(request, env, operator, requestId), requestId); }
     catch (error) { return withSecurity(errorResponse(error, requestId), requestId); }
   }
+  if (url.pathname === "/api/admin/diagnostics" && request.method === "GET") return diagnosticsWithRealtime(request, env, ctx, requestId);
   if (!url.pathname.startsWith("/api/admin/live/") && url.pathname !== "/api/public/live/subscribe") return handleCore(request, env, ctx);
   try {
     if (url.pathname === "/api/public/live/subscribe" && request.method === "POST") return withSecurity(await subscribeLive(request, env), requestId);
@@ -265,7 +401,9 @@ export async function handleRequest(incomingRequest, env = {}, ctx = { waitUntil
 
 async function scheduled(_controller, env) {
   const current = await readState(env);
-  if (current.mode === "LIVE" && current.nextTransitionAtUtc && Date.parse(current.nextTransitionAtUtc) <= Date.now()) {
+  if (!env.STATION_STATE && current.source === "QUICK_BROADCAST" && current.mode === "MANUAL" && current.nextTransitionAtUtc && Date.parse(current.nextTransitionAtUtc) <= Date.now()) {
+    await advanceEasyBroadcast(env, null, crypto.randomUUID());
+  } else if (current.mode === "LIVE" && current.nextTransitionAtUtc && Date.parse(current.nextTransitionAtUtc) <= Date.now()) {
     const next = await transition(env, "fallback", {});
     await stationLog(env, "LIVE_FAILURE", "Live broadcaster heartbeat expired; fallback started.", null, { revision: next.revision }, crypto.randomUUID());
   }

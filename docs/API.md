@@ -1,4 +1,4 @@
-# SIDEBAND v0.4.2 Application Programming Interface
+# SIDEBAND v0.5.3 Application Programming Interface
 
 The tables below show the internal root-relative route names used by the source. In production, prepend `/radio` to every route. For example, `/api/public/state` is available at `https://greenshoegarage.com/radio/api/public/state` and `/media/:assetId` is available at `/radio/media/:assetId`.
 
@@ -39,6 +39,8 @@ All timestamps are Coordinated Universal Time (UTC). JavaScript Object Notation 
 | `PUT` | `/api/admin/uploads/:id/parts/:number` | Upload one bounded part |
 | `POST` | `/api/admin/uploads/:id/complete` | Complete R2 upload and create asset |
 | `DELETE` | `/api/admin/uploads/:id` | Abort upload and cleanup |
+| `POST` | `/api/admin/easy-broadcast/start` | Start an immediate temporary queue from uploaded asset identifiers |
+| `POST` | `/api/admin/easy-broadcast/end` | End Easy Broadcast and clear its temporary queue |
 | `GET`, `POST` | `/api/admin/playlists` | List or create playlists |
 | `PATCH` | `/api/admin/playlists/:id` | Save playlist metadata draft |
 | `GET`, `POST` | `/api/admin/playlists/:id/items` | Read or add draft items |
@@ -57,7 +59,7 @@ All timestamps are Coordinated Universal Time (UTC). JavaScript Object Notation 
 | `POST` | `/api/admin/carts/fire` | Put assigned cart audio on air |
 | `PATCH` | `/api/admin/station` | Save station settings |
 | `GET` | `/api/admin/logs` | Filter station log |
-| `GET` | `/api/admin/diagnostics` | Public-safe operator diagnostics |
+| `GET` | `/api/admin/diagnostics` | Operator diagnostics, including the latest privacy-safe Realtime failure summary when present |
 | `GET` | `/api/admin/export` | Versioned configuration and metadata export |
 | `POST` | `/api/admin/import/validate` | Validate without writes |
 | `POST` | `/api/admin/import/commit` | Create R2 recovery checkpoint, then commit validated configuration |
@@ -66,3 +68,5 @@ All timestamps are Coordinated Universal Time (UTC). JavaScript Object Notation 
 | `POST` | `/api/admin/live/end` | Close live source and invoke recovery |
 
 State-changing routes require an authenticated operator, a trusted origin, valid content type, bounded body, owned identifiers, and valid revision where applicable.
+
+When `source` is `QUICK_BROADCAST`, public state also includes `quickBroadcastId`, `queuePosition`, `queueLength`, and public-safe `nextItem` metadata. It never includes the full temporary queue or private R2 object keys.

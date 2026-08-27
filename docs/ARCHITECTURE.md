@@ -1,4 +1,4 @@
-# SIDEBAND v0.4.2 Architecture
+# SIDEBAND v0.5.3 Architecture
 
 ## Unified production route
 
@@ -71,6 +71,14 @@ Draft edits live in IndexedDB until a server draft save succeeds. Publishing cre
 
 Overlap resolution is deterministic: highest priority wins; equal priority uses the later start. Gaps are explicit and use the configured fallback behavior. Local recurring time conversion uses the station’s Internet Assigned Numbers Authority (IANA) time zone and reports nonexistent or repeated daylight-saving local times.
 
+## Easy Broadcast
+
+Easy Broadcast is the default Studio workflow for prerecorded audio. The operator selects one or more local files and presses **Broadcast Selected Files**. The browser inspects and uploads each file through the same bounded multipart pipeline used by the library, but playlist and schedule records are not required.
+
+The Worker validates the resulting asset identifiers and sends a temporary ordered queue to the station Durable Object. The Durable Object starts the first item immediately, schedules an alarm for its duration, advances to each following item, broadcasts every state revision to listeners, and stops the station after the final item. The queue remains authoritative if the operator closes Studio. Pause removes the active alarm; Resume creates a new deadline from the held offset. Skip advances once, Restart resets the current item, and End Broadcast clears the temporary queue.
+
+Only queue position, queue length, and public-safe current/next item metadata appear in public state. R2 object keys and the full server queue remain private. Advanced mode preserves libraries, playlists, program clocks, schedules, carts, and the full station transport for programmed operation.
+
 ## Media delivery
 
 `src/media.js` implements:
@@ -92,14 +100,20 @@ The Worker creates a multipart upload and binds its opaque upload record to the 
 ## Live microphone path
 
 1. The operator explicitly grants microphone access.
-2. The browser exposes input choice, mono or stereo preference, gain, and a real level meter.
+2. The browser exposes input choice, mono or stereo preference, and a real level meter.
 3. Local speaker monitoring remains disconnected.
-4. A processed audio track is offered to `/api/admin/live/session`.
-5. The Worker authenticates the operator and performs Cloudflare Realtime signaling without exposing the application secret.
+4. The raw microphone track is added to the peer connection and its original offer is sent immediately to `/api/admin/live/session` as a plain `{type, sdp}` session description.
+5. The Worker authenticates the operator, creates a Realtime session without a request body, and asks Cloudflare Realtime to auto-discover the offered microphone transceiver without exposing the application secret.
 6. The station state changes to `LIVE` only after Realtime returns an answer.
 7. Listener browsers create receive-only sessions through `/api/public/live/subscribe`.
 8. A broadcaster heartbeat refreshes a grace deadline. A Durable Object alarm, with a scheduled Worker safety check, moves an expired session to fallback.
+
+Failed Realtime operations are logged with the provider stage, HTTP status, provider error code, and a structural summary of the offer. Raw SDP, media, track identifiers, credentials, and provider application identifiers are excluded.
 9. End Live closes the source track, records the event, and invokes the configured fallback or schedule-resume path.
+
+### Live presentation state
+
+`LIVE` is a first-class source state rather than a prerecorded item. It intentionally has no `item.mediaUrl`; listener audio arrives through the Realtime peer connection. The listener, Studio, and widget therefore render from `mode`, `source`, `startedAtUtc`, and `liveSessionId` instead of treating a missing media item as silence. Each surface shows an explicit red on-air state, microphone source label, and elapsed live time. Studio applies the successful Take Live response immediately and also polls public state so reloads and other operator windows converge within three seconds.
 
 ## Failure design
 

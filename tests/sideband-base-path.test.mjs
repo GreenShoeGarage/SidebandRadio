@@ -108,3 +108,41 @@ test("browser runtime uses the current radio directory as its API base", async (
     delete globalThis.SIDEBAND_CONFIG;
   }
 });
+
+test("prefixed MP3 requests preserve byte ranges through the Worker route", async () => {
+  const bytes = new Uint8Array([0x49, 0x44, 0x33, 0x04, 0x00, 0x00]);
+  const env = {
+    DB: {
+      prepare() {
+        return {
+          bind() {
+            return {
+              async first() {
+                return { id: "audio-1", object_key: "private/audio-1.mp3", mime_type: "audio/mpeg" };
+              },
+            };
+          },
+        };
+      },
+    },
+    BUCKET: {
+      async head(key) {
+        assert.equal(key, "private/audio-1.mp3");
+        return { size: bytes.length, etag: "mp3", uploaded: new Date("2026-08-27T12:00:00Z"), httpMetadata: { contentType: "audio/mpeg" } };
+      },
+      async get(key, options) {
+        assert.equal(key, "private/audio-1.mp3");
+        const offset = options?.range?.offset || 0;
+        const length = options?.range?.length || bytes.length;
+        return { body: bytes.slice(offset, offset + length) };
+      },
+    },
+  };
+  const response = await handleRequest(new Request("https://greenshoegarage.com/radio/media/audio-1", {
+    headers: { range: "bytes=0-2" },
+  }), env);
+  assert.equal(response.status, 206);
+  assert.equal(response.headers.get("content-type"), "audio/mpeg");
+  assert.equal(response.headers.get("content-range"), "bytes 0-2/6");
+  assert.deepEqual(new Uint8Array(await response.arrayBuffer()), bytes.slice(0, 3));
+});

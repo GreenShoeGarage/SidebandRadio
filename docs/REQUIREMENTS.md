@@ -1,4 +1,4 @@
-# SIDEBAND v0.4.2 Requirement-to-File Checklist
+# SIDEBAND v0.5.3 Requirement-to-File Checklist
 
 | Major requirement | Primary implementation |
 | --- | --- |
@@ -9,6 +9,8 @@
 | Protected Station Studio | `public/studio.html`, `src/auth.js`, `src/worker-core.js` |
 | Audio library and browser inspection | `public/scripts/studio.js`, `resumable-uploader.js`, `src/worker-core.js` |
 | Resumable multipart R2 upload | `public/scripts/resumable-uploader.js`, `src/worker-core.js` |
+| Two-step Easy Broadcast workflow | `public/studio.html`, `public/scripts/easy-broadcast.js`, `public/styles/easy-broadcast.css` |
+| Temporary queue and automatic file transitions | `src/worker.js`, `src/station-state.js`, `src/station-durable-object.js`, `tests/sideband-easy-broadcast.test.mjs` |
 | Correct media Range responses | `src/media.js`, `tests/sideband-media-range.test.mjs` |
 | Playlist revisions and items | `public/scripts/library-playlist.js`, `src/worker.js`, D1 schema |
 | Program clocks | `public/scripts/clocks-carts.js`, `src/worker.js`, D1 schema |
