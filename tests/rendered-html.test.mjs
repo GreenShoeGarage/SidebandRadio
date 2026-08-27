@@ -13,14 +13,14 @@ test("health endpoint reports the exact application version", async () => {
   const response = await handleRequest(new Request("http://localhost/api/health/public"), {});
   assert.equal(response.status, 200);
   const body = await response.json();
-  assert.equal(body.version, "0.4.0");
+  assert.equal(body.version, "0.4.1");
   assert.equal(body.status, "available");
 });
 
 test("production health endpoint works beneath the radio base path", async () => {
   const response = await handleRequest(new Request("https://greenshoegarage.com/radio/api/health/public"), {});
   assert.equal(response.status, 200);
-  assert.equal((await response.json()).version, "0.4.0");
+  assert.equal((await response.json()).version, "0.4.1");
 });
 
 test("bare radio path redirects to its trailing-slash form", async () => {

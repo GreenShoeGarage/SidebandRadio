@@ -1,4 +1,4 @@
-# SIDEBAND v0.4.0 Requirement-to-File Checklist
+# SIDEBAND v0.4.1 Requirement-to-File Checklist
 
 | Major requirement | Primary implementation |
 | --- | --- |

@@ -1,4 +1,4 @@
-# SIDEBAND v0.4.0 Architecture
+# SIDEBAND v0.4.1 Architecture
 
 ## Unified production route
 

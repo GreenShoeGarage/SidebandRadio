@@ -1,4 +1,4 @@
-# SIDEBAND v0.4.0 Deployment and Operations
+# SIDEBAND v0.4.1 Deployment and Operations
 
 ## Production topology
 
@@ -8,7 +8,8 @@ One Cloudflare Worker route owns `greenshoegarage.com/radio*`. Requests beneath 
 | --- | --- |
 | `/radio/` | `/` static asset |
 | `/radio/embed.html` | `/embed.html` static asset |
-| `/radio/studio.html` | `/studio.html` plus operator validation |
+| `/radio/studio` | `/studio.html` plus operator validation |
+| `/radio/studio.html` | `/studio.html` compatible alias |
 | `/radio/api/*` | `/api/*` |
 | `/radio/media/*` | `/media/*` |
 
@@ -31,7 +32,7 @@ Do not edit applied files under `drizzle/`. Generate and append a new migration 
 Create one self-hosted Access application for `greenshoegarage.com` and add both paths:
 
 ```text
-/radio/studio.html
+/radio/studio*
 /radio/api/admin/*
 ```
 
@@ -57,7 +58,7 @@ Expected results:
 
 1. Public health and station requests return successful JavaScript Object Notation (JSON) responses.
 2. Anonymous administrative requests receive an Access challenge or authorization failure.
-3. Opening Studio starts the Access login flow and then displays the operator identity.
+3. Opening `/radio/studio` starts the Access login flow and then displays the operator identity.
 4. `/radio/embed.html` loads inside an iframe on a different website.
 5. `/radio` redirects permanently to `/radio/` so relative assets resolve correctly.
 

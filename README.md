@@ -1,14 +1,14 @@
 # SIDEBAND — Audio Broadcast Workbench
 
-**Version:** 0.4.0  
+**Version:** 0.4.1  
 **Production address:** `https://greenshoegarage.com/radio/`  
 **Deployment model:** one Cloudflare Worker, one command after setup
 
 SIDEBAND is an audio-only broadcast station for scheduled programming, synchronized public listening, protected station operation, resumable media uploads, playlists, program clocks, carts, station logs, backups, diagnostics, and an embeddable listener widget.
 
-The v0.4.0 deployment no longer splits the public interface and backend across Apache and Cloudflare. Worker-hosted static assets, the Application Programming Interface (API), private R2 media, D1 metadata, and Durable Object synchronization all operate from the same `/radio` address.
+The v0.4 deployment no longer splits the public interface and backend across Apache and Cloudflare. Worker-hosted static assets, the Application Programming Interface (API), private R2 media, D1 metadata, and Durable Object synchronization all operate from the same `/radio` address.
 
-## What changed in v0.4.0
+## What changed in v0.4
 
 - The entire application is served beneath `/radio/*` by one Worker route.
 - Static assets and API requests are same-origin.
@@ -28,7 +28,8 @@ The v0.4.0 deployment no longer splits the public interface and backend across A
 | `/radio/embed.html` | Embeddable listener | Public and frameable |
 | `/radio/api/public/*` | Public station state and live subscription | Public |
 | `/radio/media/:assetId` | R2 media projection with byte ranges | Public by station asset identifier |
-| `/radio/studio.html` | Station Studio | Cloudflare Access |
+| `/radio/studio` | Station Studio (canonical address) | Cloudflare Access |
+| `/radio/studio.html` | Compatible Studio alias | Cloudflare Access |
 | `/radio/api/admin/*` | Uploads and station operations | Cloudflare Access plus Worker token validation |
 
 R2 remains private. The Worker is the only public media gateway. D1 stores metadata. A Durable Object owns authoritative on-air state and listener synchronization. Cloudflare Realtime is optional and used only for microphone broadcasting.
@@ -67,7 +68,7 @@ The setup command:
 In **Cloudflare Zero Trust → Access controls → Applications**, create a self-hosted application for `greenshoegarage.com`. Add both protected paths:
 
 ```text
-/radio/studio.html
+/radio/studio*
 /radio/api/admin/*
 ```
 
@@ -83,7 +84,7 @@ Open:
 
 ```text
 Listener: https://greenshoegarage.com/radio/
-Studio:   https://greenshoegarage.com/radio/studio.html
+Studio:   https://greenshoegarage.com/radio/studio
 Widget:   https://greenshoegarage.com/radio/embed.html
 ```
 
@@ -208,6 +209,7 @@ Detailed references are available in `docs/DEPLOYMENT.md`, `docs/SECURITY.md`, `
 
 ## Release history
 
+- **0.4.1 — 2026-08-27:** made `/radio/studio` the canonical Studio address, mapped it explicitly to the Studio asset, and consolidated both Studio URL forms under one Access wildcard.
 - **0.4.0 — 2026-08-27:** consolidated the frontend and backend beneath `greenshoegarage.com/radio/*`, added guided infrastructure setup, one-command updates, same-origin media resolution, production path tests, and unified Access protection.
 - **0.3.0 — 2026-08-26:** made the public package subdirectory-safe for Apache deployment.
 - **0.2.0 — 2026-08-26:** added the public listener-widget generator and parameterized embedded player.

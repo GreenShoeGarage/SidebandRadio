@@ -30,6 +30,29 @@ test("prefixed Studio route still requires operator authentication", async () =>
   assert.equal(response.status, 401);
 });
 
+test("extensionless Studio route requires authentication", async () => {
+  const response = await handleRequest(
+    new Request("https://greenshoegarage.com/radio/studio"),
+    { ...assetsEnvironment(), ENVIRONMENT: "production" },
+  );
+  assert.equal(response.status, 401);
+});
+
+test("extensionless Studio route serves the Studio asset after authentication", async () => {
+  const response = await handleRequest(
+    new Request("https://greenshoegarage.com/radio/studio", {
+      headers: { "oai-authenticated-user-email": "operator@example.com" },
+    }),
+    {
+      ...assetsEnvironment(),
+      ENVIRONMENT: "development",
+      ALLOW_WORKSPACE_AUTH: "true",
+    },
+  );
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "/studio.html");
+});
+
 test("production rejects a forged preview-host identity header", async () => {
   const response = await handleRequest(
     new Request("https://greenshoegarage.com/radio/studio.html", {

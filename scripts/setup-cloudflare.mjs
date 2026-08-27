@@ -81,7 +81,7 @@ Infrastructure and the public application are deployed.
 One manual security step remains:
   1. In Cloudflare Zero Trust, create one self-hosted Access application.
   2. Add these two protected paths:
-       greenshoegarage.com/radio/studio.html
+       greenshoegarage.com/radio/studio*
        greenshoegarage.com/radio/api/admin/*
   3. Add an Allow policy for your operator identity.
   4. Run: npm run configure:access

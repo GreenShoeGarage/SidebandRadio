@@ -1,4 +1,4 @@
-# SIDEBAND v0.4.0 Security and Privacy
+# SIDEBAND v0.4.1 Security and Privacy
 
 ## Embeddable listener boundary
 
@@ -9,7 +9,7 @@ The embedded player receives the same public-safe station identity and on-air st
 ## Trust boundaries
 
 - Public listener routes are anonymous and return public-safe metadata only.
-- `/radio/studio.html` and every `/radio/api/admin/*` route require an authenticated operator in production.
+- `/radio/studio*` and every `/radio/api/admin/*` route require an authenticated operator in production.
 - R2 is private; media leaves only through `/radio/media/:assetId`.
 - Cloudflare Realtime credentials remain in Worker secrets.
 - D1 internal notes, object keys, upload identifiers, and audit details are never included in public route projections.
