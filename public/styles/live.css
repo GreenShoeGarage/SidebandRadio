@@ -1,0 +1,4 @@
+.live-controls{grid-template-columns:minmax(160px,1fr) 180px 120px 100px}
+.live-warning{margin:10px 0 0!important;color:var(--amber)!important;font:700 8px/1.4 var(--mono)!important}
+@media(max-width:1100px){.live-controls{grid-template-columns:1fr 1fr}}
+@media(max-width:800px){.live-controls{grid-template-columns:1fr}}

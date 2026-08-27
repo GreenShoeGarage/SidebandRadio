@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>SIDEBAND Compact Player</title>
+  <link rel="stylesheet" href="/styles/shared.css">
+  <link rel="stylesheet" href="/styles/listener.css">
+</head>
+<body class="embed-body widget-theme-dark">
+  <main id="embedPlayer" class="embed-player" data-layout="standard">
+    <div id="embedStationBrand" class="embed-brand">
+      <div id="stationArt" class="embed-artwork" aria-hidden="true">SB</div>
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+        <span><strong id="stationName">SIDEBAND</strong><small>AUDIO ONLY · v0.2.0</small></span>
+      </div>
+    </div>
+
+    <div class="embed-program">
+      <p class="section-label">NOW PLAYING</p>
+      <h1 id="trackTitle">No programmed audio</h1>
+      <p id="trackCreator">Waiting for station state</p>
+      <p id="embedProgramDetails" class="embed-program-details"><span id="programName">No published program</span></p>
+    </div>
+
+    <button id="listenButton" class="listen-button" type="button" aria-pressed="false">
+      <span class="play-icon" aria-hidden="true">▶</span>
+      <span><strong>LISTEN</strong><small>Join live</small></span>
+    </button>
+    <p id="playerMessage" class="embed-message" role="status">Playback begins only after you choose it.</p>
+    <a id="fullStationLink" class="embed-station-link" href="/index.html" target="_blank" rel="noopener">OPEN FULL STATION <span aria-hidden="true">↗</span></a>
+    <audio id="stationAudio" preload="metadata" crossorigin="anonymous"></audio>
+  </main>
+  <script type="module" src="/scripts/embed-player.js"></script>
+</body>
+</html>

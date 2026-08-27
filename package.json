@@ -1,0 +1,30 @@
+{
+  "name": "sideband-audio-broadcast-workbench",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "displayName": "SIDEBAND — Audio Broadcast Workbench",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "test:unit": "node --test tests/sideband-*.test.mjs",
+    "fixtures": "node scripts/generate-audio-fixtures.js",
+    "dev": "npm run dev:cloudflare",
+    "dev:cloudflare": "wrangler dev --config wrangler.jsonc --local",
+    "deploy": "npm run deploy:cloudflare",
+    "deploy:cloudflare": "wrangler deploy --config wrangler.jsonc",
+    "migrate:local": "wrangler d1 migrations apply SIDEBAND_DB --local --config wrangler.jsonc",
+    "migrate:remote": "wrangler d1 migrations apply SIDEBAND_DB --remote --config wrangler.jsonc",
+    "db:generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.2"
+  },
+  "devDependencies": {
+    "drizzle-kit": "0.31.10",
+    "typescript": "5.9.3",
+    "wrangler": "4.92.0"
+  }
+}
