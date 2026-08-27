@@ -8,7 +8,7 @@ const read = (path) => readFile(new URL(path, root), "utf8");
 test("public listener identifies audio-only playback and the exact version", async () => {
   const html = await read("public/index.html");
   assert.match(html, /AUDIO ONLY/);
-  assert.match(html, /v0\.2\.0/);
+  assert.match(html, /v0\.4\.0/);
   assert.match(html, /id="listenButton"/);
   assert.match(html, /id="returnLiveButton"/);
   assert.match(html, /<audio[^>]+id="stationAudio"/);

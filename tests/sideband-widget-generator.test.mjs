@@ -31,10 +31,15 @@ test("widget URL and iframe code carry only normalized public options", () => {
 
 test("only the compact player permits third-party framing", async () => {
   const env = { ASSETS: { fetch: () => new Response("<!doctype html>", { headers: { "content-type": "text/html" } }) } };
-  const widget = await handleRequest(new Request("https://radio.example/embed.html?theme=dark"), env);
+  const widget = await handleRequest(new Request("https://greenshoegarage.com/radio/embed.html?theme=dark"), env);
   assert.match(widget.headers.get("content-security-policy"), /frame-ancestors \*/);
   assert.equal(widget.headers.get("x-frame-options"), null);
-  const listener = await handleRequest(new Request("https://radio.example/index.html"), env);
+  const listener = await handleRequest(new Request("https://greenshoegarage.com/radio/index.html"), env);
   assert.match(listener.headers.get("content-security-policy"), /frame-ancestors 'self'/);
   assert.equal(listener.headers.get("x-frame-options"), "SAMEORIGIN");
+});
+
+test("widget generator preserves the radio directory in public URLs", () => {
+  const code = buildEmbedCode("https://greenshoegarage.com/radio/", {}, "Green Shoe Garage Radio");
+  assert.match(code, /https:\/\/greenshoegarage\.com\/radio\/embed\.html\?/);
 });

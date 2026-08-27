@@ -1,4 +1,5 @@
 import { get, patch, post } from "./api.js";
+import { apiUrl } from "./runtime-config.js";
 
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -28,7 +29,7 @@ async function activateCart(event) {
   const slot = Number(button.dataset.cart) + 1, assignment = assignments.get(slot);
   if (!assignment?.asset) return notify(`Cart ${slot} is unassigned. Use Configure Carts.`);
   const mode = document.querySelector("[data-cart-mode].active")?.dataset.cartMode || "audition";
-  if (mode === "audition") { audition.src = assignment.asset.mediaUrl; audition.currentTime = 0; await audition.play(); notify(`${assignment.label} is playing only through this browser.`); return; }
+  if (mode === "audition") { audition.src = apiUrl(assignment.asset.mediaUrl); audition.currentTime = 0; await audition.play(); notify(`${assignment.label} is playing only through this browser.`); return; }
   if (assignment.requiresConfirmation && !confirm(`Play ${assignment.label} on the public station now? The schedule will be overridden and the activation logged.`)) return;
   await post("/api/admin/carts/fire", { slot, note: $("operatorNote").value }); notify(`${assignment.label} is on air.`);
 }

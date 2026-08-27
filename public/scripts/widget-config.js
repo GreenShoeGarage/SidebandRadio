@@ -45,9 +45,9 @@ export function widgetDimensions(layout) {
   return DIMENSIONS[layout] || DIMENSIONS.standard;
 }
 
-export function buildWidgetUrl(origin, value) {
+export function buildWidgetUrl(publicBaseUrl, value) {
   const settings = normalizeWidgetSettings(value);
-  const url = new URL("/embed.html", origin);
+  const url = new URL("embed.html", publicBaseUrl.endsWith("/") ? publicBaseUrl : `${publicBaseUrl}/`);
   Object.entries(settings).forEach(([key, item]) => url.searchParams.set(key, typeof item === "boolean" ? (item ? "1" : "0") : item));
   return url.toString();
 }
@@ -56,10 +56,10 @@ function escapeAttribute(value) {
   return String(value).replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 }
 
-export function buildEmbedCode(origin, value, stationName = "SIDEBAND Radio") {
+export function buildEmbedCode(publicBaseUrl, value, stationName = "SIDEBAND Radio") {
   const settings = normalizeWidgetSettings(value);
   const { width, height } = widgetDimensions(settings.layout);
-  const src = escapeAttribute(buildWidgetUrl(origin, settings));
+  const src = escapeAttribute(buildWidgetUrl(publicBaseUrl, settings));
   const title = escapeAttribute(`Listen to ${stationName}`);
   return `<iframe src="${src}" title="${title}" width="${width}" height="${height}" loading="lazy" allow="autoplay" style="width:100%;max-width:${width}px;height:${height}px;border:0;overflow:hidden;"></iframe>`;
 }

@@ -1,4 +1,8 @@
-# SIDEBAND v0.2.0 Architecture
+# SIDEBAND v0.4.0 Architecture
+
+## Unified production route
+
+Cloudflare routes `greenshoegarage.com/radio*` to the SIDEBAND Worker. The Worker removes the `/radio` deployment prefix before dispatching to static assets, public routes, administrative routes, media handling, or the Durable Object. Browser runtime configuration uses the current page directory, so API, media, and WebSocket traffic remain same-origin beneath `/radio/`. Root-relative handlers remain available to Wrangler local development and unit tests.
 
 ## Product boundary
 

@@ -1,4 +1,6 @@
-# SIDEBAND v0.2.0 Application Programming Interface
+# SIDEBAND v0.4.0 Application Programming Interface
+
+The tables below show the internal root-relative route names used by the source. In production, prepend `/radio` to every route. For example, `/api/public/state` is available at `https://greenshoegarage.com/radio/api/public/state` and `/media/:assetId` is available at `/radio/media/:assetId`.
 
 All timestamps are Coordinated Universal Time (UTC). JavaScript Object Notation (JSON) failures use:
 

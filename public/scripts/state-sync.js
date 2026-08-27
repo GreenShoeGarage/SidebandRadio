@@ -1,9 +1,10 @@
+import { webSocketUrl } from "./runtime-config.js";
+
 const connection = document.getElementById("connectionPill");
 let socket, retry = 1000, revision = -1;
 
 function connect() {
-  const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-  socket = new WebSocket(`${protocol}//${location.host}/api/public/ws`);
+  socket = new WebSocket(webSocketUrl());
   socket.onopen = () => { retry = 1000; if (connection) connection.innerHTML = '<span class="lamp lamp-green"></span>LIVE SYNC'; };
   socket.onmessage = event => {
     let message; try { message = JSON.parse(event.data); } catch { return; }

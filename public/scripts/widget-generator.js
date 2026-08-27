@@ -1,4 +1,5 @@
 import { WIDGET_DEFAULTS, buildEmbedCode, buildWidgetUrl, normalizeWidgetSettings, widgetDimensions } from "./widget-config.js";
+import { publicUrl } from "./runtime-config.js";
 
 const $ = id => document.getElementById(id);
 
@@ -21,8 +22,8 @@ function renderWidget() {
   $("widgetDimensions").textContent = `${dimensions.width} × ${dimensions.height}`;
   $("widgetPreviewFrame").style.setProperty("--widget-width", `${dimensions.width}px`);
   $("widgetPreview").style.height = `${dimensions.height}px`;
-  $("widgetPreview").src = buildWidgetUrl(location.origin, settings);
-  $("widgetCode").value = buildEmbedCode(location.origin, settings, stationName);
+  $("widgetPreview").src = buildWidgetUrl(publicUrl("./"), settings);
+  $("widgetCode").value = buildEmbedCode(publicUrl("./"), settings, stationName);
 }
 
 async function copyEmbedCode() {

@@ -2,7 +2,7 @@ import core, { handleRequest as handleCore } from "./worker-core.js";
 import { requireOperator, enforceOrigin } from "./auth.js";
 import { correlationId, errorResponse, HttpError, json } from "./errors.js";
 import { readState, transition } from "./station-state.js";
-import { STATION_ID, cleanText, opaque, readJson } from "./validation.js";
+import { PUBLIC_BASE_PATH, STATION_ID, cleanText, opaque, readJson } from "./validation.js";
 
 export { StationStateDurableObject } from "./station-durable-object.js";
 
@@ -197,7 +197,32 @@ async function importCommit(request, env, operator, requestId) {
   return json({ committed: true, checkpointKey, summary: { stationSettingsUpdated: true, mediaChanged: false, publishedScheduleChanged: false } });
 }
 
-export async function handleRequest(request, env = {}, ctx = { waitUntil() {} }) {
+function deploymentBasePath(env) {
+  const configured = String(env.PUBLIC_BASE_PATH || PUBLIC_BASE_PATH).trim();
+  if (!configured || configured === "/") return "";
+  return `/${configured.replace(/^\/+|\/+$/g, "")}`;
+}
+
+function routeRequest(request, env) {
+  const basePath = deploymentBasePath(env);
+  const url = new URL(request.url);
+  if (basePath && url.pathname === basePath) {
+    const target = new URL(request.url);
+    target.pathname = `${basePath}/`;
+    return { redirect: Response.redirect(target, 308), request };
+  }
+  if (basePath && url.pathname.startsWith(`${basePath}/`)) {
+    const internal = new URL(request.url);
+    internal.pathname = url.pathname.slice(basePath.length) || "/";
+    return { request: new Request(internal, request) };
+  }
+  return { request };
+}
+
+export async function handleRequest(incomingRequest, env = {}, ctx = { waitUntil() {} }) {
+  const routed = routeRequest(incomingRequest, env);
+  if (routed.redirect) return routed.redirect;
+  const request = routed.request;
   const url = new URL(request.url);
   const requestId = correlationId(request);
   if (url.pathname.endsWith("/publish") && url.pathname.startsWith("/api/admin/schedules/") && request.method === "POST") return handleCore(await normalizeSchedulePublish(request, env), env, ctx);

@@ -1,85 +1,110 @@
-# SIDEBAND v0.2.0 Deployment and Operations
+# SIDEBAND v0.4.0 Deployment and Operations
 
-## First deployment
+## Production topology
 
-Run from a fresh clone:
+One Cloudflare Worker route owns `greenshoegarage.com/radio*`. Requests beneath that prefix are normalized internally so the same root-based handlers continue to work in local development.
+
+| Production path | Internal handler |
+| --- | --- |
+| `/radio/` | `/` static asset |
+| `/radio/embed.html` | `/embed.html` static asset |
+| `/radio/studio.html` | `/studio.html` plus operator validation |
+| `/radio/api/*` | `/api/*` |
+| `/radio/media/*` | `/media/*` |
+
+The Green Shoe Garage origin continues handling every address outside `/radio*`.
+
+## One-time deployment
 
 ```bash
 npm ci
 npx wrangler login
-npx wrangler d1 create sideband
-npx wrangler r2 bucket create sideband-media
-cp .dev.vars.example .dev.vars
+npm run setup:cloudflare
 ```
 
-Replace the all-zero D1 placeholder in `wrangler.jsonc` with the identifier returned by `wrangler d1 create`. If the bucket name differs, update `bucket_name`.
+The setup script is idempotent: it reuses `sideband` and `sideband-media` when they already exist. It updates the D1 binding, migrates the database, and deploys the application. Stop if the Cloudflare account shown by `wrangler whoami` does not own the `greenshoegarage.com` zone.
 
-Validate locally:
-
-```bash
-npm run migrate:local
-npm run fixtures
-npm run test:unit
-npm run dev:cloudflare
-```
-
-Apply production migrations and deploy:
-
-```bash
-npm run migrate:remote
-npm run deploy:cloudflare
-```
-
-Do not deploy before the remote migration finishes successfully. Do not edit an already applied file under `drizzle/`; generate an appended migration.
+Do not edit applied files under `drizzle/`. Generate and append a new migration for schema changes.
 
 ## Cloudflare Access
 
-Create a self-hosted Access application and cover `/studio.html` and `/api/admin/*`. Set an allow policy for intended operators. Store the exact Access team domain and application audience:
+Create one self-hosted Access application for `greenshoegarage.com` and add both paths:
 
-```bash
-npx wrangler secret put CF_ACCESS_TEAM_DOMAIN
-npx wrangler secret put CF_ACCESS_AUD
+```text
+/radio/studio.html
+/radio/api/admin/*
 ```
 
-Confirm production has `ENVIRONMENT=production`. Do not add `LOCAL_AUTH_BYPASS` as a production secret or variable.
+Add an Allow policy for intended operators. Then run:
 
-Test directly:
+```bash
+npm run configure:access
+```
 
-1. An anonymous `GET /api/public/station` returns `200`.
-2. An anonymous `GET /api/admin/bootstrap` returns `401` or is intercepted by Access.
-3. An authenticated Studio request returns the operator display name.
-4. A copied or expired assertion is rejected.
-5. The public player never receives `objectKey`, internal notes, upload identifiers, or operator assertions.
+Enter the exact Access team domain and application audience tag. Wrangler stores both values as encrypted Worker secrets and redeploys.
 
-## Custom domain
+Keep `ENVIRONMENT=production`. Never add `LOCAL_AUTH_BYPASS` to production.
 
-Attach the Worker to a route or custom domain such as `radio.example.com`. Set Station Settings → Public URL to that origin. Put the same origin in Access and any rate-limiting rules. Add another origin to `ALLOWED_ORIGINS` only when a deliberate same-station administration origin requires it.
+## Acceptance checks
+
+```bash
+curl -i https://greenshoegarage.com/radio/api/health/public
+curl -i https://greenshoegarage.com/radio/api/public/station
+curl -i https://greenshoegarage.com/radio/api/admin/bootstrap
+```
+
+Expected results:
+
+1. Public health and station requests return successful JavaScript Object Notation (JSON) responses.
+2. Anonymous administrative requests receive an Access challenge or authorization failure.
+3. Opening Studio starts the Access login flow and then displays the operator identity.
+4. `/radio/embed.html` loads inside an iframe on a different website.
+5. `/radio` redirects permanently to `/radio/` so relative assets resolve correctly.
+
+## Future deployments
+
+```bash
+npm ci
+npm run deploy
+```
+
+This runs tests, applies pending remote migrations, deploys the Worker and public assets together, and retries the public health check for approximately thirty seconds.
+
+If a non-production address is being verified:
+
+```bash
+SIDEBAND_PUBLIC_URL="https://example.com/radio/" npm run verify:live
+```
+
+## Local development
+
+```bash
+cp .dev.vars.example .dev.vars
+npm run migrate:local
+npm run fixtures
+npm run dev
+```
+
+Local addresses remain root-based:
+
+```text
+http://localhost:8787/
+http://localhost:8787/studio.html
+```
+
+Production-prefix behavior is covered separately by automated tests.
 
 ## Optional Cloudflare Realtime
 
-Create a Realtime SFU application and store its values:
-
 ```bash
-npx wrangler secret put REALTIME_APP_ID
-npx wrangler secret put REALTIME_API_TOKEN
-npm run deploy:cloudflare
+npx wrangler secret put REALTIME_APP_ID --config wrangler.jsonc
+npx wrangler secret put REALTIME_API_TOKEN --config wrangler.jsonc
+npm run deploy
 ```
 
-Then run this acceptance sequence with headphones:
+Validate with headphones, two listener browsers, and the automatic scheduled-audio fallback. If the optional provider configuration fails, remove the Realtime secrets; recorded broadcasting remains available.
 
-1. Open the Studio and public player in separate browsers.
-2. Preflight the intended microphone.
-3. Confirm the level meter responds and no local speaker monitoring begins.
-4. Take Live.
-5. Confirm two listeners receive the live track.
-6. End Live and confirm fallback or the published program resumes.
-7. Repeat while closing the broadcaster tab; confirm the grace deadline starts fallback and logs `LIVE_FAILURE`.
-
-If any step fails, remove both Realtime secrets or leave them unset. Scheduled broadcasting remains operational.
-
-## Backup
-
-At minimum before an upgrade:
+## Backup before upgrades
 
 ```bash
 npx wrangler d1 export sideband --remote --output sideband-d1-backup.sql
@@ -87,56 +112,26 @@ npx wrangler d1 export sideband --remote --output sideband-d1-backup.sql
 
 Also:
 
-- export configuration and metadata from the Studio;
-- record the deployed Worker version;
-- copy R2 objects and a manifest through an R2-compatible backup process;
-- retain the current `wrangler.jsonc`, `drizzle/`, and release archive.
-
-## Restore
-
-1. Stop operator changes and live sessions.
-2. Roll back the Worker if the failure is code-only.
-3. Restore or Time Travel D1 to the matching point.
-4. Restore missing R2 objects without changing their keys.
-5. Deploy the application version compatible with that schema.
-6. Run the public health endpoint and Studio diagnostics.
-7. Audition fallback locally.
-8. Start the station and verify two synchronized listeners.
-
-Do not restore metadata that references absent media and then claim the station is healthy.
-
-## Upgrade
-
-1. Read the version history and migration notes.
-2. Export D1, metadata, and the R2 manifest.
-3. Run `npm ci` and `npm run test:unit` on the new release.
-4. Inspect new Drizzle files.
-5. Apply remote migrations once.
-6. Deploy.
-7. Verify public state, one Range request, Studio authentication, fallback, and listener synchronization.
+- export the configuration backup from Studio;
+- retain the original source audio outside R2;
+- record the deployed commit and application version;
+- preserve the current `wrangler.jsonc` database identifier; and
+- test import validation before relying on a backup.
 
 ## Rollback
 
-A Worker rollback does not undo an already applied D1 migration. If the older Worker is compatible with the newer additive schema, roll it back from Cloudflare deployment history. If it is not, restore the matching D1 backup or Time Travel point and matching R2 objects first. Never rewrite migration history to force an older application onto a newer incompatible schema.
+1. Redeploy the last known-good source.
+2. Do not reverse a D1 migration destructively without a reviewed recovery plan.
+3. Restore D1 from a verified backup if required.
+4. Confirm public health, media byte ranges, Access protection, and synchronized playback.
 
-## Troubleshooting
+## Definition of done
 
-| Symptom | Check | Recovery |
-| --- | --- | --- |
-| Studio says authentication required | Access coverage, issuer, audience, secrets | Correct Access values; never enable the production bypass |
-| Listener says station offline | Published occurrence and on-air mode | Publish a playable program, then Start Station |
-| Start Station says no playable program | Playlist revision and schedule occurrence | Add Ready audio to a playlist and publish a current block |
-| Upload stops on one part | Browser connection, R2 binding, part limit | Resume; the current part retries without duplicating earlier parts |
-| Seeking returns `416` | Requested Range and object size | Confirm the asset and browser request; validate the R2 object |
-| Audio object missing | R2 key and metadata reference | Start fallback; restore object or archive the broken asset |
-| Listener remains behind live | Intentional pause state | Choose Return to Live |
-| WebSocket unavailable | Durable Object binding and migration | Polling continues; repair `STATION_STATE` and redeploy |
-| Live controls disabled | Realtime secrets | Configure both secrets or leave live mode disabled |
-| Live session fails after offer | Realtime application, token, current API | Re-run with current Cloudflare Connection API contract; scheduled audio is unaffected |
-| Schedule publication conflict | Expected versus published revision | Reload, compare, and publish intentionally |
-| Daylight-saving time rejected | Nonexistent or repeated station-local time | Select an explicit valid occurrence and review the UTC preview |
-| Diagnostics degraded | Binding cards | Repair only the missing binding; do not expose secrets in exported diagnostics |
-
-## Cost checks
-
-Review current official Cloudflare Workers, D1, R2, Durable Objects, and Realtime pricing links in the README. Estimate from expected listener state requests, byte-range media delivery, stored audio, D1 queries, connected WebSockets, and optional live-audio outbound traffic. SIDEBAND makes no guaranteed cost claim.
+- `https://greenshoegarage.com/radio/` renders with no missing assets.
+- Studio is protected by Cloudflare Access.
+- D1, R2, and Durable Object diagnostics are healthy.
+- An uploaded asset can be auditioned and placed into a playlist.
+- A current scheduled program can be started.
+- Two listeners agree on the program and position.
+- Media seeking returns partial-content responses.
+- The generated widget works on another domain.

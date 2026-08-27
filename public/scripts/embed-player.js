@@ -1,4 +1,5 @@
 import { readWidgetSettings } from "./widget-config.js";
+import { publicUrl } from "./runtime-config.js";
 
 const settings = readWidgetSettings(location.search);
 const body = document.body;
@@ -12,7 +13,7 @@ document.getElementById("stationArt").hidden = !settings.artwork;
 document.getElementById("embedProgramDetails").hidden = !settings.details;
 document.getElementById("playerMessage").hidden = !settings.details;
 document.getElementById("fullStationLink").hidden = !settings.stationLink;
-document.getElementById("fullStationLink").href = new URL("/index.html", location.href).toString();
+document.getElementById("fullStationLink").href = publicUrl("index.html");
 
 await import("./listener.js");
 await Promise.all([import("./live-listener.js"), import("./state-sync.js")]);

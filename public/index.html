@@ -6,16 +6,17 @@
   <meta name="theme-color" content="#111411">
   <meta name="description" content="SIDEBAND synchronized audio-only station player">
   <title>SIDEBAND — Audio Broadcast Workbench</title>
-  <link rel="stylesheet" href="/styles/shared.css">
-  <link rel="stylesheet" href="/styles/listener.css">
-  <link rel="stylesheet" href="/styles/widget.css">
-  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles/shared.css">
+  <link rel="stylesheet" href="./styles/listener.css">
+  <link rel="stylesheet" href="./styles/widget.css">
+  <link rel="manifest" href="./manifest.webmanifest">
 </head>
 <body class="listener-body">
   <header class="listener-header">
-    <a class="brand" href="/index.html" aria-label="SIDEBAND home">
+    <a class="brand" href="./index.html" aria-label="SIDEBAND home">
       <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
-      <span><strong>SIDEBAND</strong><small>AUDIO BROADCAST WORKBENCH · v0.2.0</small></span>
+      <span><strong>SIDEBAND</strong><small>AUDIO BROADCAST WORKBENCH · v0.4.0</small></span>
     </a>
     <div class="status-cluster">
       <span class="pill"><span class="lamp lamp-green"></span>AUDIO ONLY</span>
@@ -32,7 +33,7 @@
         <h1 id="stationName">SIDEBAND Radio</h1>
         <p id="stationDescription">A synchronized audio-only station assembled on an engineer’s workbench.</p>
       </div>
-      <a class="text-link studio-link" href="/studio.html">STATION STUDIO <span aria-hidden="true">↗</span></a>
+      <a class="text-link studio-link" href="./studio.html">STATION STUDIO <span aria-hidden="true">↗</span></a>
     </section>
 
     <section class="console" aria-labelledby="nowHeading">
@@ -150,7 +151,7 @@
         <div class="widget-output">
           <div class="preview-label"><span>LIVE PREVIEW</span><span id="widgetDimensions">480 × 320</span></div>
           <div id="widgetPreviewFrame" class="widget-preview-frame">
-            <iframe id="widgetPreview" title="SIDEBAND listener widget preview" src="/embed.html?theme=dark&amp;layout=standard&amp;accent=%238fc46f&amp;artwork=1&amp;details=1&amp;stationLink=1" loading="lazy" allow="autoplay"></iframe>
+            <iframe id="widgetPreview" title="SIDEBAND listener widget preview" src="./embed.html?theme=dark&amp;layout=standard&amp;accent=%238fc46f&amp;artwork=1&amp;details=1&amp;stationLink=1" loading="lazy" allow="autoplay"></iframe>
           </div>
           <label class="embed-code-label" for="widgetCode">EMBED CODE</label>
           <textarea id="widgetCode" rows="5" readonly spellcheck="false" aria-describedby="widgetCopyStatus"></textarea>
@@ -166,11 +167,12 @@
     </section>
   </main>
 
-  <footer><span>SIDEBAND v0.2.0</span><span>No telemetry · No advertising · Audio only</span><span id="footerState">Not connected</span></footer>
+  <footer><span>SIDEBAND v0.4.0</span><span>No telemetry · No advertising · Audio only</span><span id="footerState">Not connected</span></footer>
   <audio id="stationAudio" preload="metadata" crossorigin="anonymous"></audio>
-  <script type="module" src="/scripts/listener.js"></script>
-  <script type="module" src="/scripts/live-listener.js"></script>
-  <script type="module" src="/scripts/state-sync.js"></script>
-  <script type="module" src="/scripts/widget-generator.js"></script>
+  <script src="./config.js"></script>
+  <script type="module" src="./scripts/listener.js"></script>
+  <script type="module" src="./scripts/live-listener.js"></script>
+  <script type="module" src="./scripts/state-sync.js"></script>
+  <script type="module" src="./scripts/widget-generator.js"></script>
 </body>
 </html>

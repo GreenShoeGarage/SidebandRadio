@@ -1,4 +1,4 @@
-# SIDEBAND v0.2.0 Data and Backup Format
+# SIDEBAND v0.4.0 Data and Backup Format
 
 ## Time and identifiers
 
@@ -14,7 +14,7 @@
 {
   "format": "sideband-backup",
   "version": "1.0",
-  "applicationVersion": "0.2.0",
+  "applicationVersion": "0.4.0",
   "kind": "configuration-and-metadata",
   "includesMedia": false,
   "exportedAtUtc": "2026-08-26T00:00:00.000Z",

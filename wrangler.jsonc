@@ -4,6 +4,12 @@
   "main": "src/worker.js",
   "compatibility_date": "2026-08-26",
   "compatibility_flags": ["nodejs_compat"],
+  "routes": [
+    {
+      "pattern": "greenshoegarage.com/radio*",
+      "zone_name": "greenshoegarage.com"
+    }
+  ],
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
@@ -31,6 +37,9 @@
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["StationStateDurableObject"] }
   ],
-  "vars": { "ENVIRONMENT": "production" },
+  "vars": {
+    "ENVIRONMENT": "production",
+    "PUBLIC_BASE_PATH": "/radio"
+  },
   "triggers": { "crons": ["* * * * *"] }
 }

@@ -1,6 +1,6 @@
 {
   "name": "sideband-audio-broadcast-workbench",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "displayName": "SIDEBAND — Audio Broadcast Workbench",
@@ -10,13 +10,17 @@
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "test:unit": "node --test tests/sideband-*.test.mjs",
+    "verify": "npm test",
     "fixtures": "node scripts/generate-audio-fixtures.js",
     "dev": "npm run dev:cloudflare",
     "dev:cloudflare": "wrangler dev --config wrangler.jsonc --local",
-    "deploy": "npm run deploy:cloudflare",
+    "setup:cloudflare": "node scripts/setup-cloudflare.mjs",
+    "configure:access": "node scripts/configure-access.mjs",
+    "deploy": "npm run verify && npm run migrate:remote && npm run deploy:cloudflare && npm run verify:live",
     "deploy:cloudflare": "wrangler deploy --config wrangler.jsonc",
-    "migrate:local": "wrangler d1 migrations apply SIDEBAND_DB --local --config wrangler.jsonc",
-    "migrate:remote": "wrangler d1 migrations apply SIDEBAND_DB --remote --config wrangler.jsonc",
+    "verify:live": "node scripts/verify-live.mjs",
+    "migrate:local": "wrangler d1 migrations apply sideband --local --config wrangler.jsonc",
+    "migrate:remote": "wrangler d1 migrations apply sideband --remote --config wrangler.jsonc",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
